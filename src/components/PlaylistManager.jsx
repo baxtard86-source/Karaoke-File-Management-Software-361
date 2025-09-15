@@ -5,7 +5,10 @@ import * as FiIcons from 'react-icons/fi';
 import { useKaraoke } from '../context/KaraokeContext';
 import { format } from 'date-fns';
 
-const { FiList, FiPlay, FiPause, FiSkipForward, FiTrash2, FiClock, FiUser, FiMusic, FiCheck, FiX, FiRotateCcw } = FiIcons;
+const { 
+  FiList, FiPlay, FiPause, FiSkipForward, FiTrash2, FiClock, FiUser, 
+  FiMusic, FiCheck, FiX, FiRotateCcw, FiMic, FiStar 
+} = FiIcons;
 
 function PlaylistManager() {
   const { state, actions } = useKaraoke();
@@ -54,16 +57,15 @@ function PlaylistManager() {
 
   const handleDrop = (e, targetItem) => {
     e.preventDefault();
-    
     if (!draggedItem || draggedItem.id === targetItem.id) return;
 
     const currentIndex = state.playlist.findIndex(item => item.id === draggedItem.id);
     const targetIndex = state.playlist.findIndex(item => item.id === targetItem.id);
-    
+
     const newPlaylist = [...state.playlist];
     newPlaylist.splice(currentIndex, 1);
     newPlaylist.splice(targetIndex, 0, draggedItem);
-    
+
     actions.reorderPlaylist(newPlaylist);
     setDraggedItem(null);
   };
@@ -73,7 +75,7 @@ function PlaylistManager() {
     if (currentPlaying) {
       actions.updatePlaylistItem(currentPlaying.id, { status: 'completed' });
     }
-    
+
     const nextPending = state.playlist.find(item => item.status === 'pending');
     if (nextPending) {
       actions.updatePlaylistItem(nextPending.id, { status: 'playing' });
@@ -107,6 +109,9 @@ function PlaylistManager() {
     skipped: state.playlist.filter(item => item.status === 'skipped').length
   };
 
+  // Raggruppa i cantanti unici
+  const uniqueSingers = [...new Set(state.playlist.map(item => item.singerName))].length;
+
   return (
     <div className="min-h-screen p-6">
       <div className="max-w-6xl mx-auto">
@@ -124,7 +129,6 @@ function PlaylistManager() {
               </h1>
               <p className="text-gray-300">Gestisci l'ordine e lo stato dei brani</p>
             </div>
-            
             <div className="flex space-x-3">
               <motion.button
                 whileHover={{ scale: 1.05 }}
@@ -136,7 +140,6 @@ function PlaylistManager() {
                 <SafeIcon icon={FiSkipForward} className="mr-2" />
                 Prossimo
               </motion.button>
-              
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
@@ -147,7 +150,6 @@ function PlaylistManager() {
                 <SafeIcon icon={FiRotateCcw} className="mr-2" />
                 Reset
               </motion.button>
-              
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
@@ -162,27 +164,27 @@ function PlaylistManager() {
           </div>
 
           {/* Statistiche */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
             <div className="bg-white/5 rounded-lg p-4 text-center">
               <div className="text-2xl font-bold text-white">{stats.total}</div>
               <div className="text-gray-300 text-sm">Totale</div>
             </div>
-            
+            <div className="bg-karaoke-purple/20 rounded-lg p-4 text-center">
+              <div className="text-2xl font-bold text-karaoke-purple">{uniqueSingers}</div>
+              <div className="text-gray-300 text-sm">Cantanti</div>
+            </div>
             <div className="bg-yellow-400/20 rounded-lg p-4 text-center">
               <div className="text-2xl font-bold text-yellow-400">{stats.pending}</div>
               <div className="text-gray-300 text-sm">In Attesa</div>
             </div>
-            
             <div className="bg-green-400/20 rounded-lg p-4 text-center">
               <div className="text-2xl font-bold text-green-400">{stats.playing}</div>
               <div className="text-gray-300 text-sm">In Corso</div>
             </div>
-            
             <div className="bg-blue-400/20 rounded-lg p-4 text-center">
               <div className="text-2xl font-bold text-blue-400">{stats.completed}</div>
               <div className="text-gray-300 text-sm">Completati</div>
             </div>
-            
             <div className="bg-red-400/20 rounded-lg p-4 text-center">
               <div className="text-2xl font-bold text-red-400">{stats.skipped}</div>
               <div className="text-gray-300 text-sm">Saltati</div>
@@ -222,14 +224,22 @@ function PlaylistManager() {
                         <div className="flex-shrink-0 w-8 h-8 bg-gray-700 rounded-full flex items-center justify-center text-white font-bold text-sm">
                           {index + 1}
                         </div>
-                        
-                        {/* Info brano */}
+
+                        {/* Info brano e cantante */}
                         <div className="flex-1 min-w-0">
-                          <h4 className="font-semibold text-white truncate text-lg">{item.song.title}</h4>
+                          <div className="flex items-center space-x-3 mb-2">
+                            <h4 className="font-semibold text-white truncate text-lg">{item.song.title}</h4>
+                            <div className="flex items-center bg-karaoke-gold/20 text-karaoke-gold px-3 py-1 rounded-full text-sm font-medium">
+                              <SafeIcon icon={FiMic} className="mr-1 text-xs" />
+                              {item.singerName}
+                            </div>
+                          </div>
+                          
                           <p className="text-gray-300 truncate flex items-center">
                             <SafeIcon icon={FiUser} className="mr-1 text-sm" />
                             {item.song.artist}
                           </p>
+                          
                           <div className="flex items-center space-x-4 mt-2">
                             <span className="text-gray-400 text-sm">
                               Aggiunto: {format(new Date(item.addedAt), 'HH:mm')}
@@ -246,7 +256,7 @@ function PlaylistManager() {
                             )}
                           </div>
                         </div>
-                        
+
                         {/* Status */}
                         <div className="flex-shrink-0">
                           <div className={`px-3 py-1 rounded-full text-sm font-medium flex items-center ${getStatusColor(item.status)}`}>
@@ -255,7 +265,7 @@ function PlaylistManager() {
                           </div>
                         </div>
                       </div>
-                      
+
                       {/* Controlli */}
                       <div className="flex items-center space-x-2 ml-4">
                         {item.status === 'pending' && (
@@ -269,7 +279,7 @@ function PlaylistManager() {
                             <SafeIcon icon={FiPlay} />
                           </motion.button>
                         )}
-                        
+
                         {item.status === 'playing' && (
                           <>
                             <motion.button
@@ -281,7 +291,6 @@ function PlaylistManager() {
                             >
                               <SafeIcon icon={FiCheck} />
                             </motion.button>
-                            
                             <motion.button
                               whileHover={{ scale: 1.05 }}
                               whileTap={{ scale: 0.95 }}
@@ -293,7 +302,7 @@ function PlaylistManager() {
                             </motion.button>
                           </>
                         )}
-                        
+
                         {(item.status === 'completed' || item.status === 'skipped') && (
                           <motion.button
                             whileHover={{ scale: 1.05 }}
@@ -305,7 +314,7 @@ function PlaylistManager() {
                             <SafeIcon icon={FiRotateCcw} />
                           </motion.button>
                         )}
-                        
+
                         <motion.button
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
@@ -335,6 +344,7 @@ function PlaylistManager() {
             <h4 className="font-medium text-blue-200 mb-3">💡 Suggerimenti</h4>
             <ul className="space-y-2 text-blue-200 text-sm">
               <li>• Trascina i brani per riordinare la scaletta</li>
+              <li>• Il nome del cantante è mostrato accanto al titolo del brano</li>
               <li>• Usa i pulsanti per cambiare lo stato dei brani</li>
               <li>• "Prossimo" completa automaticamente il brano corrente e inizia il successivo</li>
               <li>• "Reset" riporta tutti i brani allo stato "In Attesa"</li>

@@ -83,6 +83,13 @@ function SongLibrary() {
     setSelectedFilters({ artist: '', genre: '', year: '' });
   };
 
+  const handleAddToPlaylist = (song) => {
+    const singerName = prompt('Inserisci il nome del cantante:');
+    if (singerName && singerName.trim()) {
+      actions.addToPlaylist(song, singerName.trim());
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header con statistiche */}
@@ -222,7 +229,7 @@ function SongLibrary() {
                       <motion.button
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
-                        onClick={() => actions.addToPlaylist(song)}
+                        onClick={() => handleAddToPlaylist(song)}
                         className="p-2 bg-karaoke-purple hover:bg-karaoke-purple/80 text-white rounded-lg transition-colors opacity-0 group-hover:opacity-100"
                       >
                         <SafeIcon icon={FiPlus} />

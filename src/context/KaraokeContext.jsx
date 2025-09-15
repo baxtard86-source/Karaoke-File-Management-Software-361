@@ -20,26 +20,21 @@ const initialState = {
 function karaokeReducer(state, action) {
   switch (action.type) {
     case 'SET_SONGS':
-      return {
-        ...state,
-        songs: action.payload
-      };
+      return { ...state, songs: action.payload };
     
     case 'SET_INDEXING':
-      return {
-        ...state,
-        isIndexing: action.payload
-      };
+      return { ...state, isIndexing: action.payload };
     
     case 'ADD_TO_PLAYLIST':
-      const existsInPlaylist = state.playlist.find(item => item.song.id === action.payload.id);
+      const existsInPlaylist = state.playlist.find(item => item.song.id === action.payload.song.id);
       if (existsInPlaylist) return state;
       
       return {
         ...state,
         playlist: [...state.playlist, {
           id: uuidv4(),
-          song: action.payload,
+          song: action.payload.song,
+          singerName: action.payload.singerName || 'Cantante Anonimo',
           addedAt: new Date().toISOString(),
           status: 'pending'
         }]
@@ -55,39 +50,26 @@ function karaokeReducer(state, action) {
       return {
         ...state,
         playlist: state.playlist.map(item =>
-          item.id === action.payload.id ? { ...item, ...action.payload.updates } : item
+          item.id === action.payload.id
+            ? { ...item, ...action.payload.updates }
+            : item
         )
       };
     
     case 'REORDER_PLAYLIST':
-      return {
-        ...state,
-        playlist: action.payload
-      };
+      return { ...state, playlist: action.payload };
     
     case 'SET_CURRENT_SESSION':
-      return {
-        ...state,
-        currentSession: action.payload
-      };
+      return { ...state, currentSession: action.payload };
     
     case 'SET_SEARCH_RESULTS':
-      return {
-        ...state,
-        searchResults: action.payload
-      };
+      return { ...state, searchResults: action.payload };
     
     case 'SET_FILTERS':
-      return {
-        ...state,
-        filters: { ...state.filters, ...action.payload }
-      };
+      return { ...state, filters: { ...state.filters, ...action.payload } };
     
     case 'CLEAR_PLAYLIST':
-      return {
-        ...state,
-        playlist: []
-      };
+      return { ...state, playlist: [] };
     
     default:
       return state;
@@ -124,9 +106,15 @@ export function KaraokeProvider({ children }) {
     actions: {
       setSongs: (songs) => dispatch({ type: 'SET_SONGS', payload: songs }),
       setIndexing: (isIndexing) => dispatch({ type: 'SET_INDEXING', payload: isIndexing }),
-      addToPlaylist: (song) => dispatch({ type: 'ADD_TO_PLAYLIST', payload: song }),
+      addToPlaylist: (song, singerName) => dispatch({ 
+        type: 'ADD_TO_PLAYLIST', 
+        payload: { song, singerName } 
+      }),
       removeFromPlaylist: (id) => dispatch({ type: 'REMOVE_FROM_PLAYLIST', payload: id }),
-      updatePlaylistItem: (id, updates) => dispatch({ type: 'UPDATE_PLAYLIST_ITEM', payload: { id, updates } }),
+      updatePlaylistItem: (id, updates) => dispatch({ 
+        type: 'UPDATE_PLAYLIST_ITEM', 
+        payload: { id, updates } 
+      }),
       reorderPlaylist: (newOrder) => dispatch({ type: 'REORDER_PLAYLIST', payload: newOrder }),
       setCurrentSession: (session) => dispatch({ type: 'SET_CURRENT_SESSION', payload: session }),
       setSearchResults: (results) => dispatch({ type: 'SET_SEARCH_RESULTS', payload: results }),

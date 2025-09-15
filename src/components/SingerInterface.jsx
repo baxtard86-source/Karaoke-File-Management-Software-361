@@ -6,7 +6,7 @@ import * as FiIcons from 'react-icons/fi';
 import { useKaraoke } from '../context/KaraokeContext';
 import Fuse from 'fuse.js';
 
-const { FiSearch, FiPlus, FiMusic, FiCheck, FiHeart, FiStar } = FiIcons;
+const { FiSearch, FiPlus, FiMusic, FiCheck, FiHeart, FiStar, FiUser, FiMic } = FiIcons;
 
 function SingerInterface() {
   const { sessionId } = useParams();
@@ -14,6 +14,9 @@ function SingerInterface() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSong, setSelectedSong] = useState(null);
   const [addedSongs, setAddedSongs] = useState(new Set());
+  const [singerName, setSingerName] = useState('');
+  const [showNamePrompt, setShowNamePrompt] = useState(false);
+  const [pendingSong, setPendingSong] = useState(null);
 
   // Verifica se la sessione è valida
   const isValidSession = !sessionId || (state.currentSession && state.currentSession.id === sessionId);
@@ -33,7 +36,6 @@ function SingerInterface() {
     if (!searchTerm.trim()) {
       return state.songs.slice(0, 20); // Mostra solo i primi 20 se non c'è ricerca
     }
-
     const results = fuse.search(searchTerm);
     return results.map(result => result.item);
   }, [state.songs, searchTerm, fuse]);
@@ -41,9 +43,21 @@ function SingerInterface() {
   const handleAddToPlaylist = (song) => {
     if (addedSongs.has(song.id)) return;
     
-    actions.addToPlaylist(song);
+    // Se non c'è un nome cantante salvato, chiedi di inserirlo
+    if (!singerName.trim()) {
+      setPendingSong(song);
+      setShowNamePrompt(true);
+      return;
+    }
+
+    // Aggiungi direttamente se il nome è già presente
+    addSongWithName(song, singerName);
+  };
+
+  const addSongWithName = (song, name) => {
+    actions.addToPlaylist(song, name.trim());
     setAddedSongs(prev => new Set([...prev, song.id]));
-    
+
     // Feedback visivo
     setTimeout(() => {
       setAddedSongs(prev => {
@@ -52,6 +66,24 @@ function SingerInterface() {
         return newSet;
       });
     }, 3000);
+  };
+
+  const handleNameSubmit = () => {
+    if (!singerName.trim()) {
+      alert('Inserisci il tuo nome per continuare');
+      return;
+    }
+
+    if (pendingSong) {
+      addSongWithName(pendingSong, singerName);
+      setPendingSong(null);
+    }
+    setShowNamePrompt(false);
+  };
+
+  const handleNameCancel = () => {
+    setShowNamePrompt(false);
+    setPendingSong(null);
   };
 
   if (!isValidSession) {
@@ -65,8 +97,7 @@ function SingerInterface() {
           <SafeIcon icon={FiMusic} className="text-4xl text-red-400 mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-white mb-2">Sessione Non Valida</h2>
           <p className="text-gray-300">
-            La sessione richiesta non è attiva o non esiste. 
-            Contatta il DJ per ottenere un link valido.
+            La sessione richiesta non è attiva o non esiste. Contatta il DJ per ottenere un link valido.
           </p>
         </motion.div>
       </div>
@@ -84,8 +115,7 @@ function SingerInterface() {
           <SafeIcon icon={FiMusic} className="text-4xl text-gray-400 mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-white mb-2">Libreria Vuota</h2>
           <p className="text-gray-300">
-            La libreria karaoke non è ancora stata configurata. 
-            Contatta il DJ per iniziare.
+            La libreria karaoke non è ancora stata configurata. Contatta il DJ per iniziare.
           </p>
         </motion.div>
       </div>
@@ -117,11 +147,36 @@ function SingerInterface() {
           )}
         </motion.div>
 
-        {/* Ricerca */}
+        {/* Campo Nome Cantante */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
+          className="bg-white/10 backdrop-blur-lg rounded-xl p-6 mb-6"
+        >
+          <div className="flex items-center space-x-3 mb-3">
+            <SafeIcon icon={FiUser} className="text-karaoke-gold text-xl" />
+            <h3 className="text-lg font-semibold text-white">Il tuo nome</h3>
+          </div>
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Inserisci il tuo nome..."
+              value={singerName}
+              onChange={(e) => setSingerName(e.target.value)}
+              className="w-full pl-4 pr-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-karaoke-purple text-lg"
+            />
+          </div>
+          <p className="text-gray-300 text-sm mt-2">
+            Il tuo nome apparirà nella scaletta per identificare chi deve cantare
+          </p>
+        </motion.div>
+
+        {/* Ricerca */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
           className="bg-white/10 backdrop-blur-lg rounded-xl p-6 mb-6"
         >
           <div className="relative">
@@ -134,7 +189,6 @@ function SingerInterface() {
               className="w-full pl-12 pr-4 py-4 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-karaoke-purple text-lg"
             />
           </div>
-          
           <div className="mt-4 text-center text-gray-300">
             {searchTerm ? (
               <span>Trovati {filteredSongs.length} risultati</span>
@@ -148,7 +202,7 @@ function SingerInterface() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
+          transition={{ delay: 0.3 }}
           className="bg-white/5 backdrop-blur-lg rounded-xl border border-white/10 overflow-hidden"
         >
           <div className="max-h-96 overflow-y-auto">
@@ -163,7 +217,6 @@ function SingerInterface() {
                 {filteredSongs.map((song, index) => {
                   const isAdded = addedSongs.has(song.id);
                   const isInPlaylist = state.playlist.some(item => item.song.id === song.id);
-                  
                   return (
                     <motion.div
                       key={song.id}
@@ -180,7 +233,6 @@ function SingerInterface() {
                                 <SafeIcon icon={FiMusic} className="text-white text-xl" />
                               </div>
                             </div>
-                            
                             <div className="flex-1 min-w-0">
                               <h4 className="font-semibold text-white truncate text-lg">{song.title}</h4>
                               <p className="text-gray-300 truncate">{song.artist}</p>
@@ -210,11 +262,11 @@ function SingerInterface() {
                             onClick={() => handleAddToPlaylist(song)}
                             disabled={isInPlaylist}
                             className={`p-3 rounded-xl transition-all font-medium ${
-                              isInPlaylist
-                                ? 'bg-green-600 text-white cursor-not-allowed'
-                                : isAdded
-                                ? 'bg-green-600 text-white'
-                                : 'bg-karaoke-purple hover:bg-karaoke-purple/80 text-white opacity-0 group-hover:opacity-100'
+                              isInPlaylist 
+                                ? 'bg-green-600 text-white cursor-not-allowed' 
+                                : isAdded 
+                                  ? 'bg-green-600 text-white' 
+                                  : 'bg-karaoke-purple hover:bg-karaoke-purple/80 text-white opacity-0 group-hover:opacity-100'
                             }`}
                           >
                             <SafeIcon icon={isInPlaylist || isAdded ? FiCheck : FiPlus} className="text-xl" />
@@ -234,13 +286,66 @@ function SingerInterface() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
+            transition={{ delay: 0.4 }}
             className="mt-6 bg-green-500/10 border border-green-500/30 rounded-xl p-4 text-center"
           >
             <SafeIcon icon={FiHeart} className="text-2xl text-green-400 mx-auto mb-2" />
             <p className="text-green-200 font-medium">
-              Hai aggiunto {state.playlist.length} brani alla scaletta!
+              Ci sono {state.playlist.length} brani nella scaletta!
             </p>
+          </motion.div>
+        )}
+
+        {/* Modal Nome Cantante */}
+        {showNamePrompt && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-gray-900 rounded-2xl p-6 max-w-md w-full"
+            >
+              <div className="text-center">
+                <div className="w-16 h-16 bg-gradient-to-br from-karaoke-purple to-karaoke-pink rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <SafeIcon icon={FiMic} className="text-white text-2xl" />
+                </div>
+                <h3 className="text-xl font-bold text-white mb-2">Inserisci il tuo nome</h3>
+                <p className="text-gray-300 mb-6">
+                  Il tuo nome apparirà nella scaletta così il DJ saprà chi chiamare sul palco
+                </p>
+                
+                <input
+                  type="text"
+                  placeholder="Il tuo nome..."
+                  value={singerName}
+                  onChange={(e) => setSingerName(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleNameSubmit()}
+                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-karaoke-purple mb-6"
+                  autoFocus
+                />
+                
+                <div className="flex space-x-3">
+                  <button
+                    onClick={handleNameSubmit}
+                    disabled={!singerName.trim()}
+                    className="flex-1 bg-karaoke-purple hover:bg-karaoke-purple/80 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-medium py-3 rounded-xl transition-colors"
+                  >
+                    Aggiungi Brano
+                  </button>
+                  <button
+                    onClick={handleNameCancel}
+                    className="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-medium py-3 rounded-xl transition-colors"
+                  >
+                    Annulla
+                  </button>
+                </div>
+              </div>
+            </motion.div>
           </motion.div>
         )}
 
@@ -250,7 +355,7 @@ function SingerInterface() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-40"
             onClick={() => setSelectedSong(null)}
           >
             <motion.div
@@ -264,14 +369,11 @@ function SingerInterface() {
                 <div className="w-20 h-20 bg-gradient-to-br from-karaoke-purple to-karaoke-pink rounded-2xl flex items-center justify-center mx-auto mb-4">
                   <SafeIcon icon={FiStar} className="text-white text-2xl" />
                 </div>
-                
                 <h3 className="text-xl font-bold text-white mb-2">{selectedSong.title}</h3>
                 <p className="text-gray-300 mb-4">{selectedSong.artist}</p>
-                
                 {selectedSong.album && (
                   <p className="text-gray-400 text-sm mb-2">Album: {selectedSong.album}</p>
                 )}
-                
                 <div className="flex justify-center space-x-2 mb-6">
                   {selectedSong.year && (
                     <span className="bg-karaoke-gold/20 text-karaoke-gold px-3 py-1 rounded-full text-sm">
@@ -284,7 +386,6 @@ function SingerInterface() {
                     </span>
                   )}
                 </div>
-                
                 <div className="flex space-x-3">
                   <button
                     onClick={() => {
@@ -297,7 +398,6 @@ function SingerInterface() {
                     <SafeIcon icon={FiPlus} className="inline mr-2" />
                     Aggiungi
                   </button>
-                  
                   <button
                     onClick={() => setSelectedSong(null)}
                     className="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-medium py-3 rounded-xl transition-colors"
