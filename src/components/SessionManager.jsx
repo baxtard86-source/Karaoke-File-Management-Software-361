@@ -5,16 +5,22 @@ import * as FiIcons from 'react-icons/fi';
 import { useKaraoke } from '../context/KaraokeContext';
 import { v4 as uuidv4 } from 'uuid';
 
-const { FiPlay, FiPause, FiSquare, FiUsers, FiLink, FiCopy, FiCheck } = FiIcons;
+const { FiPlay, FiPause, FiSquare, FiUsers, FiLink, FiCopy, FiCheck, FiCloud, FiGlobe } = FiIcons;
 
 function SessionManager() {
   const { state, actions } = useKaraoke();
   const [sessionName, setSessionName] = useState('');
   const [copiedLink, setCopiedLink] = useState(false);
+  const [copiedCloudLink, setCopiedCloudLink] = useState(false);
 
   const createSession = () => {
     if (!sessionName.trim()) {
       alert('Inserisci un nome per la sessione');
+      return;
+    }
+
+    if (state.songs.length === 0) {
+      alert('Configura prima il database cloud nella sezione "Indicizzazione"');
       return;
     }
 
@@ -23,7 +29,8 @@ function SessionManager() {
       name: sessionName.trim(),
       createdAt: new Date().toISOString(),
       status: 'active',
-      participantCount: 0
+      participantCount: 0,
+      cloudUrl: localStorage.getItem('karaokeCloudUrl') || null
     };
 
     actions.setCurrentSession(session);
@@ -42,12 +49,29 @@ function SessionManager() {
     return `${window.location.origin}${window.location.pathname}#/singer/${state.currentSession.id}`;
   };
 
-  const copyLink = async () => {
-    const link = generateSingerLink();
+  const generateCloudAccessLink = () => {
+    if (!state.currentSession) return '';
+    const baseUrl = `${window.location.origin}${window.location.pathname}`;
+    const cloudUrl = localStorage.getItem('karaokeCloudUrl');
+    
+    if (cloudUrl) {
+      return `${baseUrl}#/singer/${state.currentSession.id}?cloud=${encodeURIComponent(cloudUrl)}`;
+    }
+    return generateSingerLink();
+  };
+
+  const copyLink = async (linkType = 'singer') => {
+    const link = linkType === 'cloud' ? generateCloudAccessLink() : generateSingerLink();
+    
     try {
       await navigator.clipboard.writeText(link);
-      setCopiedLink(true);
-      setTimeout(() => setCopiedLink(false), 2000);
+      if (linkType === 'cloud') {
+        setCopiedCloudLink(true);
+        setTimeout(() => setCopiedCloudLink(false), 2000);
+      } else {
+        setCopiedLink(true);
+        setTimeout(() => setCopiedLink(false), 2000);
+      }
     } catch (error) {
       // Fallback per browser che non supportano clipboard API
       const textArea = document.createElement('textarea');
@@ -56,8 +80,14 @@ function SessionManager() {
       textArea.select();
       document.execCommand('copy');
       document.body.removeChild(textArea);
-      setCopiedLink(true);
-      setTimeout(() => setCopiedLink(false), 2000);
+      
+      if (linkType === 'cloud') {
+        setCopiedCloudLink(true);
+        setTimeout(() => setCopiedCloudLink(false), 2000);
+      } else {
+        setCopiedLink(true);
+        setTimeout(() => setCopiedLink(false), 2000);
+      }
     }
   };
 
@@ -72,6 +102,38 @@ function SessionManager() {
         >
           <h3 className="text-xl font-semibold text-white mb-6">Crea Nuova Sessione</h3>
           
+          {/* Verifica Database */}
+          {state.songs.length === 0 ? (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-4 mb-6"
+            >
+              <div className="flex items-center text-orange-400 mb-2">
+                <SafeIcon icon={FiCloud} className="mr-2" />
+                <span className="font-medium">Database Cloud Richiesto</span>
+              </div>
+              <p className="text-orange-200 text-sm">
+                Prima di creare una sessione, configura il database cloud nella sezione "Indicizzazione".
+                Questo permetterà ai cantanti di accedere alle canzoni da qualsiasi dispositivo.
+              </p>
+            </motion.div>
+          ) : (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-green-500/10 border border-green-500/30 rounded-lg p-4 mb-6"
+            >
+              <div className="flex items-center text-green-400 mb-2">
+                <SafeIcon icon={FiCheck} className="mr-2" />
+                <span className="font-medium">Database Cloud Connesso</span>
+              </div>
+              <p className="text-green-200 text-sm">
+                {state.songs.length} canzoni disponibili. Pronto per creare la sessione!
+              </p>
+            </motion.div>
+          )}
+
           <div className="space-y-4">
             <div>
               <label className="block text-gray-300 mb-2">Nome Sessione</label>
@@ -87,7 +149,7 @@ function SessionManager() {
             
             <button
               onClick={createSession}
-              disabled={!sessionName.trim()}
+              disabled={!sessionName.trim() || state.songs.length === 0}
               className="w-full bg-karaoke-purple hover:bg-karaoke-purple/80 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center"
             >
               <SafeIcon icon={FiPlay} className="mr-2" />
@@ -112,7 +174,6 @@ function SessionManager() {
                 </h3>
                 <p className="text-gray-300">{state.currentSession.name}</p>
               </div>
-              
               <div className="text-right">
                 <div className="text-green-400 font-medium">LIVE</div>
                 <div className="text-gray-300 text-sm">
@@ -128,7 +189,6 @@ function SessionManager() {
                 <div className="text-white font-medium">{state.playlist.length}</div>
                 <div className="text-gray-400 text-xs">Richieste</div>
               </div>
-              
               <div className="bg-white/5 rounded-lg p-3 text-center">
                 <SafeIcon icon={FiPlay} className="text-xl text-green-400 mx-auto mb-1" />
                 <div className="text-white font-medium">
@@ -136,7 +196,6 @@ function SessionManager() {
                 </div>
                 <div className="text-gray-400 text-xs">In Corso</div>
               </div>
-              
               <div className="bg-white/5 rounded-lg p-3 text-center">
                 <SafeIcon icon={FiPause} className="text-xl text-yellow-400 mx-auto mb-1" />
                 <div className="text-white font-medium">
@@ -144,7 +203,6 @@ function SessionManager() {
                 </div>
                 <div className="text-gray-400 text-xs">In Attesa</div>
               </div>
-              
               <div className="bg-white/5 rounded-lg p-3 text-center">
                 <SafeIcon icon={FiCheck} className="text-xl text-purple-400 mx-auto mb-1" />
                 <div className="text-white font-medium">
@@ -155,37 +213,70 @@ function SessionManager() {
             </div>
 
             {/* Link per Cantanti */}
-            <div className="bg-white/5 rounded-lg p-4">
-              <h4 className="font-medium text-white mb-3 flex items-center">
-                <SafeIcon icon={FiLink} className="mr-2" />
-                Link per Cantanti
-              </h4>
-              
-              <div className="flex items-center space-x-2">
-                <input
-                  type="text"
-                  value={generateSingerLink()}
-                  readOnly
-                  className="flex-1 py-2 px-3 bg-white/10 border border-white/20 rounded text-white text-sm"
-                />
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={copyLink}
-                  className={`px-4 py-2 rounded transition-colors ${
-                    copiedLink 
-                      ? 'bg-green-600 text-white' 
-                      : 'bg-karaoke-purple hover:bg-karaoke-purple/80 text-white'
-                  }`}
-                >
-                  <SafeIcon icon={copiedLink ? FiCheck : FiCopy} className="mr-1" />
-                  {copiedLink ? 'Copiato!' : 'Copia'}
-                </motion.button>
+            <div className="space-y-4">
+              {/* Link Locale */}
+              <div className="bg-white/5 rounded-lg p-4">
+                <h4 className="font-medium text-white mb-3 flex items-center">
+                  <SafeIcon icon={FiLink} className="mr-2" />
+                  Link Locale (stesso WiFi)
+                </h4>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="text"
+                    value={generateSingerLink()}
+                    readOnly
+                    className="flex-1 py-2 px-3 bg-white/10 border border-white/20 rounded text-white text-sm"
+                  />
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => copyLink('singer')}
+                    className={`px-4 py-2 rounded transition-colors ${
+                      copiedLink
+                        ? 'bg-green-600 text-white'
+                        : 'bg-karaoke-purple hover:bg-karaoke-purple/80 text-white'
+                    }`}
+                  >
+                    <SafeIcon icon={copiedLink ? FiCheck : FiCopy} className="mr-1" />
+                    {copiedLink ? 'Copiato!' : 'Copia'}
+                  </motion.button>
+                </div>
+                <p className="text-gray-400 text-xs mt-2">
+                  Usa questo link per dispositivi connessi alla stessa rete
+                </p>
               </div>
-              
-              <p className="text-gray-400 text-xs mt-2">
-                Condividi questo link con i cantanti per permettere loro di aggiungere brani alla scaletta
-              </p>
+
+              {/* Link Cloud Universale */}
+              <div className="bg-white/5 rounded-lg p-4">
+                <h4 className="font-medium text-white mb-3 flex items-center">
+                  <SafeIcon icon={FiGlobe} className="mr-2" />
+                  Link Universale (qualsiasi dispositivo)
+                </h4>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="text"
+                    value={generateCloudAccessLink()}
+                    readOnly
+                    className="flex-1 py-2 px-3 bg-white/10 border border-white/20 rounded text-white text-sm"
+                  />
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => copyLink('cloud')}
+                    className={`px-4 py-2 rounded transition-colors ${
+                      copiedCloudLink
+                        ? 'bg-green-600 text-white'
+                        : 'bg-karaoke-gold hover:bg-karaoke-gold/80 text-white'
+                    }`}
+                  >
+                    <SafeIcon icon={copiedCloudLink ? FiCheck : FiCopy} className="mr-1" />
+                    {copiedCloudLink ? 'Copiato!' : 'Copia'}
+                  </motion.button>
+                </div>
+                <p className="text-gray-400 text-xs mt-2">
+                  Condividi questo link per accesso da qualsiasi dispositivo con internet
+                </p>
+              </div>
             </div>
 
             {/* Controlli */}
@@ -207,12 +298,13 @@ function SessionManager() {
             transition={{ delay: 0.2 }}
             className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-6"
           >
-            <h4 className="font-medium text-blue-200 mb-3">Come funziona</h4>
+            <h4 className="font-medium text-blue-200 mb-3">Come funziona il sistema cloud</h4>
             <ul className="space-y-2 text-blue-200 text-sm">
-              <li>• Condividi il link con i cantanti</li>
-              <li>• I cantanti possono cercare e aggiungere brani alla scaletta</li>
+              <li>• <strong>Link Locale:</strong> Funziona solo per dispositivi sulla stessa rete WiFi</li>
+              <li>• <strong>Link Universale:</strong> Funziona da qualsiasi dispositivo con connessione internet</li>
+              <li>• I cantanti accedono al database cloud direttamente dai loro dispositivi</li>
+              <li>• La scaletta viene sincronizzata in tempo reale tra tutti i dispositivi</li>
               <li>• Gestisci l'ordine e lo stato dei brani dalla sezione "Scaletta"</li>
-              <li>• Termina la sessione quando la serata è finita</li>
             </ul>
           </motion.div>
         </div>

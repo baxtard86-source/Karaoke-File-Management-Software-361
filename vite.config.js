@@ -1,26 +1,19 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import path from 'path';
 
 export default defineConfig({
   plugins: [react()],
   base: './',
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src')
-    }
-  },
   build: {
     outDir: 'dist',
-    sourcemap: true,
+    sourcemap: false,
+    assetsDir: 'assets',
     rollupOptions: {
-      external: [],
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom'],
           router: ['react-router-dom'],
           motion: ['framer-motion'],
-          charts: ['echarts', 'echarts-for-react'],
           utils: ['fuse.js', 'uuid', 'date-fns']
         }
       }
@@ -29,15 +22,22 @@ export default defineConfig({
   optimizeDeps: {
     include: [
       'react',
-      'react-dom',
+      'react-dom', 
       'react-router-dom',
       'framer-motion',
-      'echarts',
-      'echarts-for-react',
       'fuse.js',
       'uuid',
-      'date-fns',
-      'music-metadata-browser'
+      'date-fns'
     ]
+  },
+  server: {
+    port: 5173,
+    host: true,
+    cors: true
+  },
+  preview: {
+    port: 4173,
+    host: true,
+    cors: true
   }
 });
